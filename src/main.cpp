@@ -1,125 +1,127 @@
+// kode ini saya tujukan untuk arduino mega
+// koneksi arduino mega ke internet menggunakan esp01
+// alasan saya menggunakan mega karena saya ingin banyak konektornya
+// dan alasan menggunakan esp01 karena murah dan bisa digunakan untuk wifi
+
+// masukkkan semua liblarry ke arduino mega
 #include <Arduino.h>
-
-// kode untuk gps
-#include <TinyGPSPlus.h>
-static const uint32_t GPSBaud = 9600;
-TinyGPSPlus gps;
-
-// kode untuk i2c lcd
-#include <Wire.h>
+// #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+
+// setting untuk motor
+const int EnableA = 2;
+const int IN1 = 3;
+const int IN2 = 4;
+const int IN3 = 5;
+const int IN4 = 6;
+const int EnableB = 7;
+
+// setting untuk rgb led
+const int ledR = 6;
+const int ledG = 5;
+const int ledB = 3;
+
+// pin sensor cahaya
+const int sensorCahaya = A0;
+
+// nilai counter untuk main2
+int nilai_counter = 0;
+
+// setting awal untuk lcd
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// kode untuk buzzer
-#include "pitch.h"
+// buat variabel bool untuk parsing data.
+bool parsing = false;
+String sData, data[10];
+int isReady = 0, sensorReady = 0, warnaR = 0, warnaG = 0, warnaB = 0;
+String emailUser;
+int nilaiSensorCahaya = 0;
 
 void setup()
 {
+  // start komunikasi dengan esp01 pada serial 01-nya mega
   Serial.begin(9600);
-  Serial2.begin(GPSBaud);
+  // pinmode untuk motor
+  for (int i = 2; i <= 7; i++)
+  {
+    pinMode(i, OUTPUT);
+  }
+  pinMode(ledR, OUTPUT);
+  pinMode(ledG, OUTPUT);
+  pinMode(ledB, OUTPUT);
+
   // mulai lcd
-  lcd.init(); // initialize the lcd
+  lcd.init();
   lcd.backlight();
-
-  Serial.println(F("DeviceExample.ino"));
-  Serial.println(F("A simple demonstration of TinyGPSPlus with an attached GPS module"));
-  Serial.print(F("Testing TinyGPSPlus library v. "));
-  Serial.println(TinyGPSPlus::libraryVersion());
-  Serial.println(F("by Mikal Hart"));
-  Serial.println();
-
-  lcd.setCursor(0, 0);
-  lcd.print("hai dunia");
-  lcd.setCursor(0, 1);
-  lcd.print("apa kabarnya?");
-  delay(2000);
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("gps starting...");
-  delay(2000);
-}
-
-void displayInfo()
-{
-  Serial.print(F("Location: "));
-  if (gps.location.isValid())
-  {
-    Serial.print(gps.location.lat(), 6);
-    Serial.print(F(","));
-    Serial.print(gps.location.lng(), 6);
-    lcd.setCursor(0, 0);
-    lcd.print(gps.location.lat(), 6);
-    lcd.print("          ");
-    lcd.setCursor(0, 1);
-    lcd.print(gps.location.lng(), 6);
-    lcd.print("          ");
-    if (gps.location.lat() < -5.361300 || gps.location.lat() > -5.361100)
-      tone(8, NOTE_G3);
-    else
-      noTone(8);
-  }
-  else
-  {
-    Serial.print(F("INVALID"));
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("gps invalid");
-    lcd.print("     ");
-  }
-
-  Serial.print(F("  Date/Time: "));
-  if (gps.date.isValid())
-  {
-    Serial.print(gps.date.month());
-    Serial.print(F("/"));
-    Serial.print(gps.date.day());
-    Serial.print(F("/"));
-    Serial.print(gps.date.year());
-  }
-  else
-  {
-    Serial.print(F("INVALID"));
-  }
-
-  Serial.print(F(" "));
-  if (gps.time.isValid())
-  {
-    if (gps.time.hour() < 10)
-      Serial.print(F("0"));
-    Serial.print(gps.time.hour());
-    Serial.print(F(":"));
-    if (gps.time.minute() < 10)
-      Serial.print(F("0"));
-    Serial.print(gps.time.minute());
-    Serial.print(F(":"));
-    if (gps.time.second() < 10)
-      Serial.print(F("0"));
-    Serial.print(gps.time.second());
-    Serial.print(F("."));
-    if (gps.time.centisecond() < 10)
-      Serial.print(F("0"));
-    Serial.print(gps.time.centisecond());
-  }
-  else
-  {
-    Serial.print(F("INVALID"));
-  }
-
-  Serial.println();
 }
 
 void loop()
 {
-
-  // This sketch displays information every time a new sentence is correctly encoded.
-  while (Serial2.available() > 0)
-    if (gps.encode(Serial2.read()))
-      displayInfo();
-
-  if (millis() > 5000 && gps.charsProcessed() < 10)
+  // baca nilai sensor cahaya setiap pertama kali
+  nilaiSensorCahaya = analogRead(sensorCahaya);
+  nilaiSensorCahaya = map(nilaiSensorCahaya, 0, 1024, 0, 100);
+  // kode untuk mendapatkan nilai dari arduino mega
+  while (Serial.available())
   {
-    Serial.println(F("No GPS detected: check wiring."));
-    while (true)
-      ;
+    // buat variabel nilaiinput, dan masukkan nilai serial.readString kesana
+    // String nilaiInput = Serial.readString();
+    // print/tampilkan nilai input tadi di serial monitor
+    char inChar = Serial.read();
+    sData += inChar;
+    if (inChar == '$')
+      parsing = true;
+    if (parsing)
+    {
+      int q = 0;
+      for (int i = 0; i < sData.length(); i++)
+      {
+        if (sData[i] == '#')
+        {
+          q++;
+          data[q] = "";
+        }
+        else
+          data[q] += sData[i];
+      }
+      // setelah semua data didapatkan, kita akan print datanya ke serial satu persatu
+      isReady = data[1].toInt();
+      sensorReady = data[2].toInt();
+      emailUser = data[3].c_str();
+      warnaR = data[4].toInt();
+      warnaG = data[5].toInt();
+      warnaB = data[6].toInt();
+      parsing = false;
+      sData = "";
+    }
+  }
+  // tampilan pertama pada layar lcd
+  lcd.setCursor(0, 0);
+  lcd.print("hai ");
+  lcd.print(emailUser);
+  lcd.print("               ");
+  lcd.setCursor(0, 1);
+  lcd.print(nilaiSensorCahaya);
+  lcd.print(" ");
+  lcd.print(isReady);
+  lcd.print(" ");
+  lcd.print(sensorReady);
+
+  if (isReady == 1 && sensorReady == 0)
+  {
+    analogWrite(ledR, warnaR);
+    analogWrite(ledG, warnaG);
+    analogWrite(ledB, warnaB);
+  }
+  else if (isReady == 1 && sensorReady == 1)
+  {
+    analogWrite(ledR, 225 - warnaR);
+    analogWrite(ledG, 225 - warnaG);
+    analogWrite(ledB, 225 - warnaB);
+  }
+  else
+  {
+    analogWrite(ledR, 0);
+    analogWrite(ledG, 0);
+    analogWrite(ledB, 0);
   }
 }
