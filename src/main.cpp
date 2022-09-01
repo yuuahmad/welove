@@ -22,7 +22,7 @@ const int ledG = 5;
 const int ledB = 3;
 
 // pin sensor cahaya
-const int sensorCahaya = A0;
+const int sensorSampah = 13;
 
 // nilai counter untuk main2
 int nilai_counter = 0;
@@ -35,7 +35,8 @@ bool parsing = false;
 String sData, data[10];
 int isReady = 0, sensorReady = 0, warnaR = 0, warnaG = 0, warnaB = 0;
 String emailUser;
-int nilaiSensorCahaya = 0;
+int NilaiSensorSampah = 0;
+int kirimNilaiSensorSampah = 0;
 
 void setup()
 {
@@ -46,9 +47,12 @@ void setup()
   {
     pinMode(i, OUTPUT);
   }
+  // pinmode untuk led rgb
   pinMode(ledR, OUTPUT);
   pinMode(ledG, OUTPUT);
   pinMode(ledB, OUTPUT);
+  // pinmode untuk sensor sampah
+  pinMode(sensorSampah, INPUT);
 
   // mulai lcd
   lcd.init();
@@ -58,9 +62,9 @@ void setup()
 void loop()
 {
   // baca nilai sensor cahaya setiap pertama kali
-  nilaiSensorCahaya = analogRead(sensorCahaya);
-  nilaiSensorCahaya = map(nilaiSensorCahaya, 0, 1024, 0, 100);
-  // kode untuk mendapatkan nilai dari arduino mega
+  NilaiSensorSampah = digitalRead(sensorSampah);
+  // kode untuk mendapatkan nilai dari esp01.
+  // dan tampilkan hasilnya di layar lcd
   while (Serial.available())
   {
     // buat variabel nilaiinput, dan masukkan nilai serial.readString kesana
@@ -94,34 +98,58 @@ void loop()
       sData = "";
     }
   }
-  // tampilan pertama pada layar lcd
-  lcd.setCursor(0, 0);
-  lcd.print("hai ");
-  lcd.print(emailUser);
-  lcd.print("               ");
-  lcd.setCursor(0, 1);
-  lcd.print(nilaiSensorCahaya);
-  lcd.print(" ");
-  lcd.print(isReady);
-  lcd.print(" ");
-  lcd.print(sensorReady);
 
+  // // tampilan pada layar lcd dan perintah pada setiap kondisinya
   if (isReady == 1 && sensorReady == 0)
   {
+    lcd.setCursor(0, 0);
+    lcd.print(emailUser);
+    lcd.print("               ");
+    lcd.setCursor(0, 1);
+    lcd.print("brhsl login");
+    lcd.print(NilaiSensorSampah);
+    lcd.print(kirimNilaiSensorSampah);
+    lcd.print("               ");
     analogWrite(ledR, warnaR);
     analogWrite(ledG, warnaG);
     analogWrite(ledB, warnaB);
+    kirimNilaiSensorSampah = 0;
   }
   else if (isReady == 1 && sensorReady == 1)
   {
+    lcd.setCursor(0, 0);
+    lcd.print("sampah terscan");
+    lcd.print("               ");
+    lcd.setCursor(0, 1);
+    lcd.print("mskn sampah");
+    lcd.print(NilaiSensorSampah);
+    lcd.print(kirimNilaiSensorSampah);
+    lcd.print("               ");
     analogWrite(ledR, 225 - warnaR);
     analogWrite(ledG, 225 - warnaG);
     analogWrite(ledB, 225 - warnaB);
+    if (NilaiSensorSampah == 0)
+      kirimNilaiSensorSampah = 1;
   }
   else
   {
+    lcd.setCursor(0, 0);
+    lcd.print("welove 001");
+    lcd.print("               ");
+    lcd.setCursor(0, 1);
+    lcd.print("be a savior");
+    lcd.print(NilaiSensorSampah);
+    lcd.print(kirimNilaiSensorSampah);
+    lcd.print("               ");
+    lcd.print(sensorReady);
     analogWrite(ledR, 0);
     analogWrite(ledG, 0);
     analogWrite(ledB, 0);
+    kirimNilaiSensorSampah = 0;
   }
+
+  // kirim nilai sensor sampah ke esp01
+  Serial.print("#");
+  Serial.print(kirimNilaiSensorSampah);
+  Serial.println("#$");
 }
